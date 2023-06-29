@@ -1,98 +1,110 @@
+from typing import Any
+
 import numpy as np
 import pandas as pd
 from math import exp
-from sklearn.datasets import load_digits
-
-digits = load_digits()
-
-n = len(digits.images)
-
-images = digits.images.reshape((n, -1))
 
 
 class NeuralNetwork:
-    def __init__(self, input_matrix: "Array"):
-        self.input_matrix = input_matrix
+    def __init__(self):
+        self.hidden_layers = None
+        self.training_data = None
         self.biases = None
         self.weights = None
         self.bias_weights = None
         self.output = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
         self.threshold = 0.5
         self.results = list()
-        self.bias = np.array([[0.1 for _ in range(len(images[0]))]
-                              for _ in range(len(images))])
 
-    def generate_weights(self, num: tuple):
+    def __generate_weights(self, range_w: list[int, list, int], values=None):
+        """
+        :param range_w: expect [len(input_matrix), [number of neurons in each hd layers separated by comma],
+        len(output)]
+        :param values: expect a dictionary that identify the value that will be atributted to the biases
+        and the weights default: {'weights': 0.5, 'biases': 0.1}
+        """
+        if values is None:
+            values = {'weights': 0.5, 'biases': 0.1}
         biases: list[list] = list()
         weights: list[list] = list()
         bias_weights: list[list] = list()
 
-        # Calculating the length of the input (pixels)
-        flayer = len(self.input_matrix)
-
-        # Creating the inputs weights by list compreension
-        we = bwe = [0.5 for _ in range(flayer)]
-        bias = [0.1 for _ in range(flayer)]
-        biases.append(bias)
-        weights.append(we)
-        bias_weights.append(bwe)
-
-        # Loops to create the weights of the hidden layers
-        if num.isinstance(tuple):
-            for x in num:
-                we = bwe = [0.5 for _ in range(x)]
-                bias = [0.1 for _ in range(x)]
-                biases.append(bias)
+        for index, r in enumerate(range_w):
+            if index == 1:
+                # Generate the biases and weights based on the length of the layer
+                for neuron in r:
+                    we = bwe = [values['weights'] for _ in range(neuron)]
+                    bias = [values['biases'] for _ in range(neuron)]
+                    weights.append(we)
+                    biases.append(bias)
+                    bias_weights.append(bwe)
+            else:
+                we = bwe = [values['weights'] for _ in range(r)]
+                bias = [values['biases'] for _ in range(r)]
                 weights.append(we)
+                biases.append(bias)
                 bias_weights.append(bwe)
-        else:
-            we = bwe = [0.5 for _ in range(num)]
-            bias = [0.1 for _ in range(num)]
-            biases.append(bias)
-            weights.append(we)
-            bias_weights.append(bwe)
-
-        # Creating the output weights by list compreension
-        we = bwe = [0.5 for _ in self.output]
-        bias = [0.1 for _ in self.output]
-        biases.append(bias)
-        weights.append(we)
-        bias_weights.append(bwe)
 
         # Create a numpy array with the weights
-        self.biases = np.array(biases)
-        self.weights = np.array(weights)
-        self.bias_weights = np.array(bias_weights)
+        self.biases = biases
+        self.weights = weights
+        self.bias_weights = bias_weights
 
     @staticmethod
     # Method that do the basic perceptron operation
-    def perceptron(x, w, b, web):
-        return np.multiply(x, w) + np.multiply(b, web)
+    def __perceptron(x, w, b, web):
+        data = np.array(x)
+        weight = np.array(w)
+        bias = np.array(b)
+        bias_weight = np.array(web)
+        print(np.sum(np.multiply(data, weight) + np.multiply(bias, bias_weight)))
+        return np.sum(np.multiply(data, weight) + np.multiply(bias, bias_weight))
 
     @staticmethod
     def activation_function(value: int) -> int or float:
         val = -value
-        # Sigmoid function
-        return 1 / (1 + exp(val))
+        return 1 / (1 + exp(val))  # Sigmoid function
 
     # Method that do the operations between the hidden layers
-    def layers(self, layers: tuple | int):
-        network_result: list[list] = list()
-        for inp in self.input_matrix:
-            for index, neurons in enumerate(layers):
-                layer_result = list()
-                for neuron in range(neurons):
-                    result = self.perceptron(inp,
-                                             self.weights[index],
-                                             self.bias[index],
-                                             self.bias_weights[index])
-                    sigmoid = self.activation_function(result)
+    def training_config(self, training_data, neurons_layers: list):
+        self.training_data = training_data  # Array containg the input of each layer
+        self.hidden_layers: list[int] = neurons_layers
 
-                    if sigmoid > self.threshold:
-                        layer_result.append(sigmoid)
-                    else:
-                        layer_result.append(0)
-            for output in self.output:
-                
+    def train(self):
+        # Section to generate the weights to all layers
+        inplayer = len(self.training_data[0])  # Get the lenght of the first item in the training array
+        outlayer = len(self.output)
+        w_layers = [inplayer, self.hidden_layers, outlayer]
+        self.__generate_weights(w_layers)  # Call method that generate the biases and weights
+        self.hidden_layers.append(len(self.output))
 
-                network_result.append(layer_result)
+        for data in self.training_data:
+            self.__layers(data, self.hidden_layers)
+
+    def __layers(self, inp_data, hd_layers: list | int):
+        # Array that will contain all the inputs of each layer
+        input_matrix = list()
+        input_matrix.append(inp_data)
+
+        for index, neurons in enumerate(hd_layers):
+            layer_result = list()  # List containing the neurons output
+            # print('====> Layer: ', index+1)
+            for i in range(neurons):
+                #print('>>>> Neuron', i, end='\n\n')
+                result = self.__perceptron(input_matrix[index],
+                                           self.weights[index],
+                                           self.biases[index],
+                                           self.bias_weights[index])  # Call the perceptron method (Neuron)
+                print(result)
+                sigmoid = self.activation_function(result)  # Call the sigmoid activation function
+
+                # The sigmoid return must be greater than the threshold to pass the information to the next neuron
+                if sigmoid > self.threshold:
+                    layer_result.append(sigmoid)
+                else:
+                    layer_result.append(0)
+
+            # Append the layer results at the input matrix
+            # print(len(layer_result))
+            #print('Layer: ', index, layer_result)
+            input_matrix.append(layer_result)
