@@ -20,7 +20,8 @@ class NeuralNetwork:
         data = np.array(x)
         weight = np.array(w)
         bias = np.array(b)
-        return np.sum(np.multiply(data, weight)) + bias
+        result = np.sum(np.multiply(data, weight)) + bias
+        return result.item()
 
     @staticmethod
     def __activation_function(value: int) -> int or float:
@@ -52,11 +53,10 @@ class NeuralNetwork:
 
         for index, neurons in enumerate(hd_layers):
             layer_result = list()  # List containing the neurons output
-            for _ in range(neurons):
-                print(self.weights[neuron_count])
+            for i in range(neurons):
                 result = self.__perceptron(input_matrix[index],
-                                           self.weights[neuron_count],
-                                           self.biases[neuron_count])  # Call the perceptron (Neuron)
+                                           self.weights[index][i],
+                                           self.biases[index][i])  # Call the perceptron (Neuron)
                 sigmoid = self.__activation_function(result)  # Call the sigmoid activation function
 
                 # The sigmoid returns must be greater than the threshold to activate
@@ -74,7 +74,7 @@ class NeuralNetwork:
         print(f'{Colors.CIAN}[*]{Colors.RESET} Resposta Correta >> {Colors.GREEN}{target}{Colors.RESET}',
               end='\n')
 
-        print(f'{Colors.PURPLE}[LISTA]{Colors.RESET} >>', end=' ')
+        print(f'{Colors.PURPLE}[N]{Colors.RESET} >>', end=' ')
         for num, out in enumerate(out_array):
             print(f'{Colors.HARD_RED}[{num}]{Colors.RESET}: [{out:.2f}];', end=' ')
         print(f'\n{Colors.YELLOW}[+]{Colors.RESET} Most Rated : {max(input_matrix[-1]):.2f} ', end='\n')
