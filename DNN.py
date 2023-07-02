@@ -20,7 +20,7 @@ class NeuralNetwork:
     @staticmethod
     def __activation_function(value: int, deriv=False) -> int or float:
         if deriv:
-            return value * (1 - value)
+            return self.__activation_function(value) * (1 - self.__activation_function(value))
         return 1 / (1 + np.exp(-value))  # Sigmoid function
 
     @staticmethod
