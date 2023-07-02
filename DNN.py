@@ -17,58 +17,47 @@ class NeuralNetwork:
         self.threshold = 0.6
         self.results = list()
 
-    @staticmethod
-    def __activation_function(value: int, deriv=False) -> int or float:
+    @classmethod
+    def __activation_function(cls, value: int, deriv=False) -> int or float:
         if deriv:
-            return self.__activation_function(value) * (1 - self.__activation_function(value))
+            return cls.__activation_function(value) * (1 - cls.__activation_function(value))
         return 1 / (1 + np.exp(-value))  # Sigmoid function
 
     @staticmethod
     def __mean_squared_error(preds, targets) -> int or float:
-        length = len(preds)
-        preds = np.array(preds)
-        targets = np.array(targets)
-        squared_error = [(tar - val) ** 2 for tar, val in zip(targets, preds)]
-        mse = (np.sum(squared_error) / length)
+        mse = (((targets - preds) ** 2) / 2)
         return mse
 
     def __backpropagation(self, entry_data, preds, targets, activations):
         out_error = self.__mean_squared_error(preds, targets)
-        for i, activ in enumerate(activations):
-            layers_error = list()
-            r_activ = activ[::-1]  # Return the list reversed
-            out_delta = np.array([out_error * self.__activation_function(y, deriv=True) for y in
-                                  r_activ[0]])  # Calculating the gradient of the output layer
-            layers_error.append(out_delta)
-            for layer, (i, a) in zip(reversed(self.weights), enumerate(r_activ)):
-                transpose_weights = layer.T  # Transpose the weights of the current layer
+        new_weights = list()
+        layers_error = list()
 
-                # How much each weight impacted at the error of each neuron
-                print('Layer Error: \n\n', layers_error[-1], '\n\n')
-                print('Layer: ', layer)
-                hdl_error = np.array([np.dot(d, l).tolist() for d, l in zip(layers_error[-1], layer)])
+        r_activ = activations[::-1]  # Return the list reversed
+        out_delta = np.array([out_error * self.__activation_function(y, deriv=True) for y in r_activ[0]])  # Calculating the gradient of the output layer
 
-                # Calculating the derivative of the active function of each activation of the current layer
-                deriv_activ = np.array([np.array(self.__activation_function(s, deriv=True)) for s in r_activ[1 + i]])
+        layers_error.append(out_delta)
 
-                # Calculating the gradient of each neuron
-                hdl_delta = np.array([x * y for x, y in zip(hdl_error.T, deriv_activ)])
-                weight_update = transpose_weights - self.eta * hdl_delta
-                # print('Derivative: \n\n', deriv_activ)
-                print('Hdl Error: \n\n', hdl_error.T)
-                print('HDL Delta: \n\n', hdl_delta)
-                # print('Transpose: \n\n', transpose_weights, '\n\n')
-                print('Weights: \n\n', weight_update)
-                print('Activ', r_activ[1 + i])
+        for layer, (i, a) in zip(reversed(self.weights), enumerate(r_activ)):
+            t_weights= layer.T  # Transpose the weights of the current layer
 
-                layers_error.append(hdl_delta)
-                sleep(2)
+            # How much each weight impacted at the error of each neuron
+            hdl_error = np.array([np.dot(d,l).tolist() for d, l in zip(layers_error[-1], layer.T)])
+            deriv_activ = np.array([np.array(self.__activation_function(s, deriv=True)) for s in r_activ[1 + i]])
+            hdl_delta = np.array([x * y for x, y in zip(hdl_error, deriv_activ)])
+            print('Hdl Error: ', hdl_error)
+            print(layer)
+            print('\n\n',hdl_delta)
+            weight_update = layer - (self.eta * hdl_delta)
+            print(weight_update)
+
+
+        return new_weights[::-1]
 
     # Method that do the operations between the hidden layers
-    def network_config(self, training_data, target, neurons_layers: list, epoch=10, batch_size=10, eta=0.01):
+    def network_config(self, training_data, target, neurons_layers: list, epoch=10, eta=5):
         self.training_data = training_data  # Array containg the input of each layer
         self.epoch = epoch
-        self.batch_size = batch_size
         self.eta = eta
 
         neurons_layers.insert(0, len(training_data.tolist()[0]))
@@ -82,24 +71,13 @@ class NeuralNetwork:
 
     def train(self):
         # Section to generate the weights to all layers
-        preds = list()
-        targets = list()
-        inp_tests = list()
-        activ_h_l = list()
         count = 0
-        batches = [self.training_data[batch:batch + self.batch_size] for batch in
-                   range(0, len(self.training_data), self.batch_size)]
-
-        for index, data in enumerate(batches):
-            for entry in data:
+        for e in range(self.epoch):
+            for data, target in zip(self.training_data, self.targets):
                 print(f'Treinamento Nº: {Colors.BG_RED}{count}{Colors.RESET}\n')
-                (pred, activ_h) = self.__layers(entry, self.hidden_layers[1:], self.targets[count])
-                targets.append(self.targets[count])
-                preds.append(pred)
-                inp_tests.append(entry.tolist())
-                activ_h_l.append(activ_h)
+                (pred, activ_h) = self.__layers(data, self.hidden_layers[1:], target)
                 count += 1
-            self.__backpropagation(inp_tests, preds, targets, activ_h_l)
+                self.weights = self.__backpropagation(data[0], pred, target, activ_h)
 
     def __layers(self, inp_data, hd_layers: list | int, target):
         # Array that will contain all the inputs of each layer
