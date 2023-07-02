@@ -33,32 +33,36 @@ class NeuralNetwork:
         return mse
 
     def __backpropagation(self, entry_data, preds, targets, activations):
-            out_error = self.__mean_squared_error(preds, targets)
-            for i, activ in enumerate(activations):
-                layers_error = list()
-                r_activ = activ[::-1]  # Return the list reversed
-                out_delta = np.array([out_error * self.__activation_function(y, deriv=True) for y in r_activ[0]])  # Calculating the gradient of the output layer
-                layers_error.append(out_delta)
-                for layer, (i, a) in zip(reversed(self.weights), enumerate(r_activ)):
-                    transpose_weights = layer.T  # Transpose the weights of the current layer
+        out_error = self.__mean_squared_error(preds, targets)
+        for i, activ in enumerate(activations):
+            layers_error = list()
+            r_activ = activ[::-1]  # Return the list reversed
+            out_delta = np.array([out_error * self.__activation_function(y, deriv=True) for y in
+                                  r_activ[0]])  # Calculating the gradient of the output layer
+            layers_error.append(out_delta)
+            for layer, (i, a) in zip(reversed(self.weights), enumerate(r_activ)):
+                transpose_weights = layer.T  # Transpose the weights of the current layer
 
-                    # How much each weight impacted at the error of each neuron
-                    print('Layer Error: \n\n', layers_error[-1],'\n\n')
-                    print('Layer: ', layer)
-                    hdl_error = np.array([np.dot(d, l).tolist() for d, l in zip(layers_error[-1], layer)])
+                # How much each weight impacted at the error of each neuron
+                print('Layer Error: \n\n', layers_error[-1], '\n\n')
+                print('Layer: ', layer)
+                hdl_error = np.array([np.dot(d, l).tolist() for d, l in zip(layers_error[-1], layer)])
 
-                    # Calculating the derivative of the active function of each activation of the current layer
-                    deriv_activ = np.array([np.array(self.__activation_function(s, deriv=True)) for s in r_activ[1+i]])
-                    # Calculating the gradient of each neuron
-                    hdl_delta = np.array([x*y for x, y in zip(hdl_error.T, deriv_activ)])
-                    print('Derivative: \n\n',   deriv_activ)
-                    print('Hdl Error: \n\n', hdl_error.T)
-                    print('HDL Delta: \n\n',hdl_delta)
-                    print('Transpose: \n\n',transpose_weights, '\n\n')
-                    print("New: \n\n", transpose_weights-hdl_delta)
+                # Calculating the derivative of the active function of each activation of the current layer
+                deriv_activ = np.array([np.array(self.__activation_function(s, deriv=True)) for s in r_activ[1 + i]])
 
-                    layers_error.append(hdl_delta)
-                    sleep(2)
+                # Calculating the gradient of each neuron
+                hdl_delta = np.array([x * y for x, y in zip(hdl_error.T, deriv_activ)])
+                weight_update = transpose_weights - self.eta * hdl_delta
+                # print('Derivative: \n\n', deriv_activ)
+                print('Hdl Error: \n\n', hdl_error.T)
+                print('HDL Delta: \n\n', hdl_delta)
+                # print('Transpose: \n\n', transpose_weights, '\n\n')
+                print('Weights: \n\n', weight_update)
+                print('Activ', r_activ[1 + i])
+
+                layers_error.append(hdl_delta)
+                sleep(2)
 
     # Method that do the operations between the hidden layers
     def network_config(self, training_data, target, neurons_layers: list, epoch=10, batch_size=10, eta=0.01):
