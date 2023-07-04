@@ -11,7 +11,6 @@ class NeuralNetwork:
         self.targets = None
         self.biases = None
         self.weights = None
-        self.batch_size = None
         self.output = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         self.threshold = 0.6
 
@@ -24,25 +23,38 @@ class NeuralNetwork:
 
     @staticmethod
     def __mean_squared_error(preds, targets) -> int or float:
-        mse = np.mean((targets - preds) ** 2)
-        deriv_mse = -2 * (targets - preds) / preds
+        mse = (targets - preds) ** 2
+        deriv_mse = -2 * (targets - preds)
         # Return the mse and the derivative of the error
         return mse, deriv_mse
 
+    @staticmethod
+    def __cross_entropy_loss(preds, target: int, deriv=False):
+        n = len(preds)
+        y = np.zeros(n)
+        y[target] = 1
+        epsilon = 1e-10
+        preds = np.clip(preds, epsilon, 1 - epsilon)
+
+        if deriv:
+            e_deriv = -(y / preds) + ((1 - y) / (1 - preds))
+            return e_deriv
+
+        loss = -np.sum(y * np.log(preds)) / n
+        return loss
+
     def __backpropagation(self, deriv_mse, activations, deriv_activ):
         r_activ = list(reversed(activations))[1:]  # Activation list reversed - Length : 3 (include input layer)
-        r_deriv_activ = list(
-            reversed(deriv_activ))  # Derivative activation list reversed - Length : 4 (include input layer)
+        # Derivative activation list reversed - Length : 4 (include input layer)
+        r_deriv_activ = list(reversed(deriv_activ))
         r_biases = list(reversed(self.biases))  # Bias list reversed - Length : 3 (exclude input layer)
         r_weights = list(reversed(self.weights))  # Weights list reversed - Length : 3 (only 3 connections)
-
-        i_actived_neuron = activations[-1].index(max(activations[-1]))  # Activated neuron position
 
         for i, (weights, biases) in enumerate(zip(r_weights, r_biases)):
             # Neurons local gradient
             if i == 0:
-                neu_out_g_list = [d_a * deriv_mse if i == i_actived_neuron else 0 for i, d_a in
-                                  enumerate(r_deriv_activ[i])]
+                neu_out_g_list = [np.sum(d_a * deriv_mse) for d_a in r_deriv_activ[i]]
+
                 # Bias update
                 new_bias = np.array([x - y for x, y in zip(self.biases[-1 - i], neu_out_g_list)])
                 self.biases[-1 - i] = new_bias
@@ -50,9 +62,11 @@ class NeuralNetwork:
                 # Weight update
                 w_grad = np.array([np.array(x) * r_activ[i] for x in neu_out_g_list])
                 self.weights[-1 - i] -= (self.eta * w_grad)
+
+                # Propag backwards
                 propag = np.array([n * w for n, w in zip(neu_out_g_list, weights)])
-                new_neu_grad = np.array([x * y for x, y in zip(r_deriv_activ[1 + i], propag.T)])
-                neu_out_g_list = new_neu_grad[new_neu_grad != 0]
+                new_neu_grad = np.array([np.sum(x * y) for x, y in zip(r_deriv_activ[1 + i], propag.T)])
+                neu_out_g_list = new_neu_grad
 
             elif i == len(r_weights) - 1:
                 new_bias = np.array([x - y for x, y in zip(self.biases[-1 - i], neu_out_g_list)])
@@ -61,12 +75,12 @@ class NeuralNetwork:
                 w_grad = np.array([np.array(x) * r_activ[i] for x in neu_out_g_list])
                 self.weights[-1 - i] -= (self.eta * w_grad)
 
-            else:
+            elif i != len(r_weights) - 1 or i != 0:
                 w_grad = np.array([np.array(x) * r_activ[i] for x in neu_out_g_list])
                 self.weights[-1 - i] -= (self.eta * w_grad)
                 propag = np.array([n * w for n, w in zip(neu_out_g_list, weights)])
-                new_neu_grad = np.array([x * y for x, y in zip(r_deriv_activ[1 + i], propag.T)])
-                neu_out_g_list = new_neu_grad[new_neu_grad != 0]
+                new_neu_grad = np.array([np.sum(x * y) for x, y in zip(r_deriv_activ[1 + i], propag.T)])
+                neu_out_g_list = new_neu_grad
 
                 new_bias = np.array([x - y for x, y in zip(self.biases[-1 - i], neu_out_g_list)])
                 self.biases[-1 - i] = new_bias
@@ -93,15 +107,16 @@ class NeuralNetwork:
     def train(self):
         count = 0
         for e in range(self.epoch):
-            training_data = np.random.shuffle(self.training_data)
+            indices = np.random.permutation(len(self.training_data))
+            data = self.training_data[indices]
+            targets = self.targets[indices]
             # For each data in all training data
-            for data, target in zip(training_data, self.targets):
+            for data, target in zip(data, targets):
                 print(f'Treinamento Nº: {Colors.BG_RED}{count}{Colors.RESET}\n')
                 # Pred = output, activ_h: activations, deriv_h = derivative of each activation
                 (pred, activ_h, deriv_h) = self.__layers(data, self.layers[1:], target)
-                out_error, deriv_mse = self.__mean_squared_error(pred, target)
-                if out_error != 0:
-                    self.__backpropagation(deriv_mse, activ_h, deriv_h)  # Call the backpropagation method
+                deriv_mse = self.__cross_entropy_loss(pred, target, deriv=True)
+                self.__backpropagation(deriv_mse, activ_h, deriv_h)  # Call the backpropagation method
                 count += 1  # To count the executions
 
     def __layers(self, inp_data, hd_layers: list | int, target):
@@ -135,4 +150,4 @@ class NeuralNetwork:
               end='\n\n\n\n')
 
         # Return the output, the activations of each layer and the derivative of each activation
-        return output, input_matrix, deriv_sigmoid
+        return out_array, input_matrix, deriv_sigmoid
