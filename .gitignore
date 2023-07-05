@@ -1,0 +1,9 @@
+Include
+Lib
+Scripts
+.fleet
+PGTO-MOT.xlsx
+pyenv.cfg
+rn.py
+backup.xlsx
+__pycache__
