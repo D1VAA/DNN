@@ -29,14 +29,14 @@ class MultiLayerPerceptron:
         self.weights = [np.random.normal(0, 0.01, (y, x)) for x, y in zip(self.layers[:-1], self.layers[1:])]
         self.biases = [np.random.randn(y, 1) for y in self.layers[1:]]
 
-    def __backpropagation(self, deriv_mse, activations, deriv_activ):
+    def __backpropagation(self, deriv_e, activations, deriv_activ):
         r_activ = list(reversed(activations))[1:]
         r_deriv_activ = list(reversed(deriv_activ))
         r_biases = list(reversed(self.biases))
         r_weights = list(reversed(self.weights))
 
         for i, (weights, biases) in enumerate(zip(r_weights, r_biases)):
-            neu_out_g_list = [np.sum(d_a * deriv_mse) for d_a in r_deriv_activ[i]]
+            neu_out_g_list = [np.sum(d_a * deriv_e) for d_a in r_deriv_activ[i]]
             neu_out_g_list = np.array(neu_out_g_list).reshape(self.biases[-1 - i].shape)
             self.biases[-1 - i] -= neu_out_g_list
 
@@ -73,14 +73,14 @@ class MultiLayerPerceptron:
         for index, (weights, bias) in enumerate(zip(self.weights, self.biases)):
             # lp = sigmoid(perceptron)
             lp = [sigmoid((np.dot(activations[-1], weights[i]) + bias[i])[0]) for i in range(len(weights))]
-            
-            if index != len(self.weights) -1:
+
+            if index != len(self.weights) - 1:
                 deriv_sigmoid.append([x['d_sig'] for x in lp])
             # Execute the softmax function on the output layer
             else:
                 self.soft = softmax([x['val'] for x in lp])
             activations.append([x['sig'] for x in lp])
-        
+
         # Select the output layer
         out_layer = list(self.soft['soft'])
         output = out_layer.index(max(out_layer))
